@@ -11,5 +11,5 @@ get '/build' do
     status 422
     body 'missing required param: repo'
   end
-  
+
 end
