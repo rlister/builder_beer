@@ -1,3 +1,5 @@
+require './slack'
+
 class Builder
   @queue  = ENV.fetch('BUILDER_QUEUE', :builder_queue)
   @home   = ENV.fetch('BUILDER_HOME', '/tmp')                # where to clone repos
@@ -11,9 +13,10 @@ class Builder
     repo = parse_uri(spec)
     repo.image = image || "#{repo.name}:#{repo.branch}"
 
-    git_pull(repo)
-    docker_build(repo)
-    docker_push(repo)
+    repo.sha = git_pull(repo)
+    build_ok = docker_build(repo)
+    notify_slack(repo, build_ok)
+    docker_push(repo) if build_ok
 
     Resque.logger.info "done #{spec}"
   end
@@ -29,13 +32,14 @@ class Builder
     )
   end
 
-  ## need to replace github assumption
+  ## update repo and return SHA
   def self.git_pull(repo)
     if %x[ mkdir -p #{repo.dir} && cd #{repo.dir} && git rev-parse --is-inside-work-tree 2> /dev/null ].chomp == 'true'
       git_checkout(repo) #repo exists, pull changes
     else
       git_clone(repo)    #new repo, clone it
     end
+    git_rev_parse(repo)  #return SHA
   end
 
   def self.git_checkout(repo)
@@ -50,10 +54,18 @@ class Builder
     %x[ git clone -b #{repo.branch} git@github.com:#{repo.name} '#{repo.dir}' ] # not found: clone it
   end
 
+  def self.git_rev_parse(repo)
+    Dir.chdir(repo.dir) do
+      %x[ git rev-parse #{repo.branch} ]
+    end
+  end
+
+  ## run docker build and return true/false for success/fail
   def self.docker_build(repo)
     Resque.logger.info 'building image ...'
     Dir.chdir(repo.dir) do
       %x[ #{@docker} build --rm -t #{repo.image} . ]
+      $?.success?
     end
   end
 
