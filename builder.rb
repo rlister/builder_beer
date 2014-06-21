@@ -1,35 +1,26 @@
 require './slack'
 
 class Builder
-  @queue  = ENV.fetch('BUILDER_QUEUE', :builder_queue)
-  @home   = ENV.fetch('BUILDER_HOME', '/tmp')                # where to clone repos
-  @docker = ENV.fetch('BUILDER_DOCKER', 'sudo docker')       # how to run docker
+  @queue    = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
+  @home     = ENV.fetch('BUILDER_HOME', '/tmp')          # where to clone repos
+  @docker   = ENV.fetch('BUILDER_DOCKER', 'sudo docker') # how to run docker
+  @registry = ENV.fetch('BUILDER_REGISTRY', nil)         # set this to your private registry
 
-  ## spec looks like org/repo:branch, image tag will be same unless passed
-  ## as second arg (e.g. for private repo like index.example.com/repo:branch)
-  def self.perform(spec, image = nil)
-    Resque.logger.info "building #{spec}"
+  def self.perform(params)
+    repo = OpenStruct.new(params)
+    repo.branch ||= 'master'
+    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].join('/')
+    repo.url    ||= "git@github.com:#{repo.org}/#{repo.name}.git"
+    repo.dir    ||= File.join(@home, repo.org, "#{repo.name}:#{repo.branch}")
 
-    repo = parse_uri(spec)
-    repo.image = image || "#{repo.name}:#{repo.branch}"
+    Resque.logger.info "building #{repo.image} from #{repo.url}"
 
     repo.sha = git_pull(repo)
     build_ok = docker_build(repo)
     notify_slack(repo, build_ok)
     docker_push(repo) if build_ok
 
-    Resque.logger.info "done #{spec}"
-  end
-
-  ## need to replace this with a proper git url parser and not assume github
-  def self.parse_uri(repospec)
-    name, branch = repospec.gsub(/\.git$/, '').split(':')
-    branch ||= 'master'
-    OpenStruct.new(
-      name:   name,
-      branch: branch,
-      dir:    File.join(@home, "#{name}:#{branch}")
-    )
+    Resque.logger.info "done #{repo.image}"
   end
 
   ## update repo and return SHA
