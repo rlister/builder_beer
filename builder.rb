@@ -56,7 +56,7 @@ class Builder
 
   def self.git_rev_parse(repo)
     Dir.chdir(repo.dir) do
-      %x[ git rev-parse #{repo.branch} ]
+      %x[ git rev-parse #{repo.branch} ].chomp
     end
   end
 
