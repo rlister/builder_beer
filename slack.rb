@@ -15,13 +15,17 @@ class Builder
     http.use_ssl = true
     http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
+    ## slack-formatted link to this commit in github
+    sha_link = "<http://github.com/#{repo.name}/commit/#{repo.sha}|#{repo.sha.slice(0,10)}>"
+
     request = Net::HTTP::Post.new(uri.request_uri)
     request.set_form_data(payload: {
       username: @name,
       channel:  @channel,
       attachments: [{
-        text:      "build #{build_ok ? 'complete' : 'failed'} for #{repo.name}:#{repo.branch} #{repo.sha.slice!(0,10)}",
+        text:      "build #{build_ok ? 'complete' : 'failed'} for #{repo.name}:#{repo.branch} #{sha_link}",
         color:     build_ok ? 'good' : 'danger',
+        mrkdwn_in: %w[ text ],  #allow link formatting in attachment
       }]
     }.to_json)
 
