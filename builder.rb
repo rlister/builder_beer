@@ -34,15 +34,15 @@ class Builder
   end
 
   def self.git_checkout(repo)
-    Resque.logger.info 'repo exists, pulling ...'
+    Resque.logger.info "repo exists, pulling #{repo.url}"
     Dir.chdir(repo.dir) do
       %x[ git checkout #{repo.branch} && git pull ]
     end
   end
 
   def self.git_clone(repo)
-    Resque.logger.info 'new repo, cloning ...'
-    %x[ git clone -b #{repo.branch} git@github.com:#{repo.name} '#{repo.dir}' ] # not found: clone it
+    Resque.logger.info "new repo, cloning #{repo.url}"
+    %x[ git clone -b #{repo.branch} #{repo.url} '#{repo.dir}' ] # not found: clone it
   end
 
   def self.git_rev_parse(repo)
@@ -53,7 +53,7 @@ class Builder
 
   ## run docker build and return true/false for success/fail
   def self.docker_build(repo)
-    Resque.logger.info 'building image ...'
+    Resque.logger.info "building image #{repo.image}"
     Dir.chdir(repo.dir) do
       %x[ #{@docker} build --rm -t #{repo.image} . ]
       $?.success?
@@ -61,7 +61,7 @@ class Builder
   end
 
   def self.docker_push(repo)
-    Resque.logger.info 'pushing image ...'
+    Resque.logger.info "pushing image #{repo.image}"
     %x[ #{@docker} push #{repo.image} ]
   end
 
