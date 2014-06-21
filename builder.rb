@@ -9,7 +9,7 @@ class Builder
   def self.perform(params)
     repo = OpenStruct.new(params)
     repo.branch ||= 'master'
-    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].join('/')
+    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].compact.join('/')
     repo.url    ||= "git@github.com:#{repo.org}/#{repo.name}.git"
     repo.dir    ||= File.join(@home, repo.org, "#{repo.name}:#{repo.branch}")
 
