@@ -16,7 +16,7 @@ class Builder
     http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
     ## slack-formatted link to this commit in github
-    sha_link = "<http://github.com/#{repo.name}/commit/#{repo.sha}|#{repo.sha.slice(0,10)}>"
+    sha_link = "<http://github.com/#{repo.org}/#{repo.name}/commit/#{repo.sha}|#{repo.sha.slice(0,10)}>"
 
     request = Net::HTTP::Post.new(uri.request_uri)
     request.set_form_data(payload: {
