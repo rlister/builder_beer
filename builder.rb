@@ -10,17 +10,23 @@ class Builder
   def self.perform(params)
     repo = OpenStruct.new(params)
 
-    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].compact.join('/')
+    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].compact.join('/') #tag with branch
     repo.url    ||= "git@github.com:#{repo.org}/#{repo.name}.git"
     repo.dir    ||= File.join(@home, repo.org, "#{repo.name}:#{repo.branch}")
 
     Resque.logger.info "building #{repo.image} from #{repo.url}"
 
     repo.sha = git_pull(repo)
+    repo.tag = [ @registry, "#{repo.name}:#{repo.sha}" ].compact.join('/') #tag with sha
+
     copy_files(repo)
     build_ok = docker_build(repo)
-    notify_slack(repo, build_ok)
-    docker_push(repo) if build_ok
+    notify_slack(repo, "build #{build_ok ? 'complete' : 'failed'}")
+
+    if build_ok
+      push_ok = docker_push(repo)
+      notify_slack(repo, "push #{push_ok ? 'complete' : 'failed'}")
+    end
 
     Resque.logger.info "done #{repo.image}"
   end
