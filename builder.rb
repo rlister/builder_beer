@@ -68,18 +68,22 @@ class Builder
     end
   end
 
-  ## run docker build and return true/false for success/fail
+  ## build image, tag with sha and branch, return true/false for success/fail
   def self.docker_build(repo)
     Resque.logger.info "building image #{repo.image}"
     Dir.chdir(repo.dir) do
-      %x[ #{@docker} build --rm -t #{repo.image} . ]
+      # %x[ #{@docker} build --rm -t #{repo.image} . ]
+      %x[ #{@docker} build --rm -t #{repo.tag} . && #{@docker} tag #{repo.tag} #{repo.image} ]
       $?.success?
     end
   end
 
   def self.docker_push(repo)
+    Resque.logger.info "pushing image #{repo.tag}"
+    %x[ #{@docker} push #{repo.tag} ]
     Resque.logger.info "pushing image #{repo.image}"
     %x[ #{@docker} push #{repo.image} ]
+    $?.success?
   end
 
 end
