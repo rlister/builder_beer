@@ -8,7 +8,7 @@ class Builder
   @name    = ENV.fetch('BUILDER_SLACK_NAME', 'builder')
   @token   = ENV.fetch('BUILDER_SLACK_TOKEN', nil)
 
-  def self.notify_slack(repo, message)
+  def self.notify_slack(repo, message, ok)
     uri = URI.parse("https://#{@team}.slack.com/services/hooks/incoming-webhook?token=#{@token}")
 
     http = Net::HTTP.new(uri.host, uri.port)
@@ -25,7 +25,7 @@ class Builder
       attachments: [{
         # text:      "build #{build_ok ? 'complete' : 'failed'} for #{repo.name}:#{repo.branch} #{sha_link}",
         text:      "#{message} for #{repo.name}:#{repo.branch} #{sha_link}",
-        color:     build_ok ? 'good' : 'danger',
+        color:     ok ? 'good' : 'danger',
         mrkdwn_in: %w[ text ],  #allow link formatting in attachment
       }]
     }.to_json)

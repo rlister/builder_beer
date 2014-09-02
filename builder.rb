@@ -21,11 +21,11 @@ class Builder
 
     copy_files(repo)
     build_ok = docker_build(repo)
-    notify_slack(repo, "build #{build_ok ? 'complete' : 'failed'}")
+    notify_slack(repo, "build #{build_ok ? 'complete' : 'failed'}", build_ok)
 
     if build_ok
       push_ok = docker_push(repo)
-      notify_slack(repo, "push #{push_ok ? 'complete' : 'failed'}")
+      notify_slack(repo, "push #{push_ok ? 'complete' : 'failed'}", push_ok)
     end
 
     Resque.logger.info "done #{repo.image}"
