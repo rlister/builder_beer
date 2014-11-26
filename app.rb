@@ -2,23 +2,23 @@ require 'sinatra'
 require 'resque'
 require './builder'
 
-## simole endpoint as GET /build?repo=org/name:branch&image=...
+## simple endpoint as GET /build?repo=org/name:branch&image=...
 get '/build' do
+  raise 'missing required param: repo' unless params[:repo]
 
-  if params[:repo]
-    org, name, branch = params[:repo].gsub(/\.git$/, '').split(/[:\/]/)
-    Resque.enqueue(Builder, {
-      org:    org,
-      name:   name,
-      branch: branch,
-      image:  params[:image],
-    })
-    'ok'
-  else
-    status 422
-    body 'missing required param: repo'
-  end
+  match = params[:repo].match(/^(?<org>\S+)\/(?<name>\S+):(?<branch>\S+)/)
+  raise 'could not parse repo' unless match
 
+  Resque.enqueue(Builder, {
+    org:    match[:org],
+    name:   match[:name],
+    branch: match[:branch],
+    image:  params[:image],
+  })
+  'ok'
+rescue => e
+  status 422
+  body e.message
 end
 
 ## receive a post-receive hook from github
@@ -29,7 +29,7 @@ post '/github' do
     Resque.enqueue(Builder, {
       org:    payload['repository']['organization'],
       name:   payload['repository']['name'],
-      branch: payload['ref'].split('/').last,
+      branch: payload['ref'].gsub('refs/heads/', ''),
     })
     'ok'
   else
