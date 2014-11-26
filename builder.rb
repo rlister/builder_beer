@@ -10,9 +10,12 @@ class Builder
   def self.perform(params)
     repo = OpenStruct.new(params)
 
-    repo.image  ||= [ @registry, "#{repo.name}:#{repo.branch}" ].compact.join('/') #tag with branch
-    repo.url    ||= "git@github.com:#{repo.org}/#{repo.name}.git"
-    repo.dir    ||= File.join(@home, repo.org, "#{repo.name}:#{repo.branch}")
+    ## for tag and dir we need to remove / from branch
+    branch = repo.branch.gsub('/', '_')
+
+    repo.image ||= [ @registry, "#{repo.name}:#{branch}" ].compact.join('/') #tag with branch
+    repo.url   ||= "git@github.com:#{repo.org}/#{repo.name}.git"
+    repo.dir   ||= File.join(@home, repo.org, "#{repo.name}:#{branch}")
 
     Resque.logger.info "building #{repo.image} from #{repo.url}"
 
