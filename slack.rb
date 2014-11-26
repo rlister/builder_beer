@@ -24,7 +24,7 @@ class Builder
       channel:  @channel,
       attachments: [{
         # text:      "build #{build_ok ? 'complete' : 'failed'} for #{repo.name}:#{repo.branch} #{sha_link}",
-        text:      "#{message} for #{repo.name}:#{repo.branch} #{sha_link}",
+        text:      "#{message} for #{repo.image} #{sha_link}",
         color:     ok ? 'good' : 'danger',
         mrkdwn_in: %w[ text ],  #allow link formatting in attachment
       }]
