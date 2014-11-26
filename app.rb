@@ -4,21 +4,23 @@ require './builder'
 
 ## simple endpoint as GET /build?repo=org/name:branch&image=...
 get '/build' do
-  raise 'missing required param: repo' unless params[:repo]
+  begin
+    raise 'missing required param: repo' unless params[:repo]
 
-  match = params[:repo].match(/^(?<org>\S+)\/(?<name>\S+):(?<branch>\S+)/)
-  raise 'could not parse repo' unless match
+    match = params[:repo].match(/^(?<org>\S+)\/(?<name>\S+):(?<branch>\S+)/)
+    raise 'could not parse repo' unless match
 
-  Resque.enqueue(Builder, {
-    org:    match[:org],
-    name:   match[:name],
-    branch: match[:branch],
-    image:  params[:image],
-  })
-  'ok'
-rescue => e
-  status 422
-  body e.message
+    Resque.enqueue(Builder, {
+      org:    match[:org],
+      name:   match[:name],
+      branch: match[:branch],
+      image:  params[:image],
+    })
+    'ok'
+  rescue => e
+    status 422
+    body e.message
+  end
 end
 
 ## receive a post-receive hook from github
