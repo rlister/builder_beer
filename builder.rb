@@ -11,7 +11,7 @@ class Builder
     repo = OpenStruct.new(params)
 
     ## for tag and dir we need to remove / from branch
-    branch = repo.branch.gsub('/', '_')
+    branch = repo.branch.gsub('/', '-')
 
     repo.image ||= [ @registry, "#{repo.name}:#{branch}" ].compact.join('/') #tag with branch
     repo.url   ||= "git@github.com:#{repo.org}/#{repo.name}.git"
