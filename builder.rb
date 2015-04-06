@@ -47,7 +47,7 @@ class Builder
   def self.git_checkout(repo)
     Resque.logger.info "repo exists, pulling #{repo.url}"
     Dir.chdir(repo.dir) do
-      %x[ git checkout #{repo.branch} && git fetch && git reset --hard origin/#{repo.branch} ]
+      %x[ git checkout -f #{repo.branch} && git fetch && git reset --hard origin/#{repo.branch} ]
     end
   end
 
