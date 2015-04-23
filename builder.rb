@@ -100,7 +100,6 @@ class Builder
     end
   end
 
-
   ## build image, return true/false for success/fail
   def self.docker_build(dir, image)
     Resque.logger.info "building image #{image} in #{dir}"
