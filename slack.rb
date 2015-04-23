@@ -30,7 +30,7 @@ class Builder
       }]
     }.to_json)
 
-    response = http.request(request)
+    http.request(request)
   end
 
 end
