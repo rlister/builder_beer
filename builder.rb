@@ -14,31 +14,48 @@ class Builder
     ## for tag and dir we need to remove / from branch
     branch = repo.branch.gsub('/', '-')
 
-    repo.image ||= [ @registry, "#{repo.name}:#{branch}" ].compact.join('/') #tag with branch
-    repo.url   ||= "git@github.com:#{repo.org}/#{repo.name}.git"
-    repo.dir   ||= File.join(@home, repo.org, "#{repo.name}:#{branch}")
+    repo.url ||= "git@github.com:#{repo.org}/#{repo.name}.git"
+    repo.dir ||= File.join(@home, repo.org, "#{repo.name}:#{branch}")
 
-    Resque.logger.info "building #{repo.image} from #{repo.url}"
+    Resque.logger.info "building from #{repo.url}"
 
+    ## pull the repo
     repo.sha = git_pull(repo)
-    repo.tag = [ @registry, "#{repo.name}:#{repo.sha}" ].compact.join('/') #tag with sha
 
-    copy_files(repo)
-    build_ok = docker_build(repo)
-    notify_slack(repo, "build #{build_ok ? 'complete' : 'failed'}", build_ok)
+    ## copy any external files into the repo
+    copy_files(File.join(@files_dir, repo.name), repo.name)
 
-    if build_ok
-      push_ok = docker_push(repo)
-      notify_slack(repo, "push #{push_ok ? 'complete' : 'failed'}", push_ok)
+    ## link to commit to embed into slack messages
+    sha_link = "<http://github.com/#{repo.org}/#{repo.name}/commit/#{repo.sha}|#{repo.sha.slice(0,10)}>"
+
     ## load config from file or default
     yaml = load_yaml(File.join(repo.dir, '.builder.yml')) || {}
     builds = yaml.fetch('builds', [{
       'dir'   => '.',
       'image' => [ @registry, "#{repo.name}" ].compact.join('/')
     }])
-    end
 
-    Resque.logger.info "done #{repo.image}"
+    ## do all requested builds
+    builds.each do |build|
+
+      image_with_sha    = "#{build['image']}:#{repo.sha}" # image to build, tagged with sha
+      image_with_branch = "#{build['image']}:#{branch}"   # add branch as a tag
+
+      ## build the image
+      build_ok = docker_build(File.join(repo.dir, build['dir']), image_with_sha)
+      notify_slack("build #{build_ok ? 'complete' : 'failed'} for #{image_with_branch} #{sha_link}", build_ok)
+
+      ## add extra tag and push to registry
+      if build_ok
+        docker_tag(image_with_sha, image_with_branch)
+        push_ok = docker_push(image_with_sha) && docker_push(image_with_branch)
+        notify_slack("push #{push_ok ? 'complete' : 'failed'} for #{image_with_branch} #{sha_link}", push_ok)
+      end
+
+      Resque.logger.info "done #{image_with_sha}"
+    end
+  end
+
   ## load optional yaml file listing subdirs to build
   def self.load_yaml(file)
     if File.exists?(file)
@@ -76,29 +93,34 @@ class Builder
   end
 
   ## if there is a dir of extra files, recursively copy them into repo
-  def self.copy_files(repo)
-    dir = File.join(@files_dir, repo.name)
-    if Dir.exists?(dir)
-      Resque.logger.info("copying files from #{dir} into #{repo.dir}")
-      FileUtils.cp_r(File.join(dir, '.'), repo.dir)
+  def self.copy_files(files_dir, repo_dir)
+    if Dir.exists?(files_dir)
+      Resque.logger.info("copying files from #{files_dir} into #{repo_dir}")
+      FileUtils.cp_r(File.join(files_dir, '.'), repo_dir)
     end
   end
 
-  ## build image, tag with sha and branch, return true/false for success/fail
-  def self.docker_build(repo)
-    Resque.logger.info "building image #{repo.image}"
-    Dir.chdir(repo.dir) do
-      # %x[ #{@docker} build --rm -t #{repo.image} . ]
-      %x[ #{@docker} build --rm -t #{repo.tag} . && #{@docker} tag #{repo.tag} #{repo.image} ]
+
+  ## build image, return true/false for success/fail
+  def self.docker_build(dir, image)
+    Resque.logger.info "building image #{image} in #{dir}"
+    Dir.chdir(dir) do
+      %x[ #{@docker} build --rm -t #{image} . ]
       $?.success?
     end
   end
 
-  def self.docker_push(repo)
-    Resque.logger.info "pushing image #{repo.tag}"
-    %x[ #{@docker} push #{repo.tag} ]
-    Resque.logger.info "pushing image #{repo.image}"
-    %x[ #{@docker} push #{repo.image} ]
+  ## add a tag to image
+  def self.docker_tag(image, name)
+    Resque.logger.info "tagging image #{image} as #{name}"
+    %x[ #{@docker} tag #{image} #{name} ]
+    $?.success?
+  end
+
+  ## push image to registry
+  def self.docker_push(image)
+    Resque.logger.info "pushing image #{image}"
+    %x[ #{@docker} push #{image} ]
     $?.success?
   end
 
