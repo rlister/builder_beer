@@ -42,7 +42,7 @@ class Builder
       image_with_branch = "#{build['image']}:#{branch}"   # add branch as a tag
 
       ## build the image
-      build_ok = docker_build(File.join(repo.dir, build['dir']), image_with_sha)
+      build_ok = docker_build(File.join(repo.dir, build['dir']), image_with_sha, build.fetch('dockerfile', 'Dockerfile'))
       notify_slack("build #{build_ok ? 'complete' : 'failed'} for #{image_with_branch} #{sha_link}", build_ok)
 
       ## add extra tag and push to registry
@@ -101,10 +101,10 @@ class Builder
   end
 
   ## build image, return true/false for success/fail
-  def self.docker_build(dir, image)
+  def self.docker_build(dir, image, dockerfile)
     Resque.logger.info "building image #{image} in #{dir}"
     Dir.chdir(dir) do
-      %x[ #{@docker} build --rm -t #{image} . ]
+      %x[ #{@docker} build --rm -t #{image} -f #{dockerfile} . ]
       $?.success?
     end
   end
