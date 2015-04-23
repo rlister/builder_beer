@@ -1,4 +1,5 @@
 require './slack'
+require 'yaml'
 
 class Builder
   @queue     = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
@@ -29,9 +30,21 @@ class Builder
     if build_ok
       push_ok = docker_push(repo)
       notify_slack(repo, "push #{push_ok ? 'complete' : 'failed'}", push_ok)
+    ## load config from file or default
+    yaml = load_yaml(File.join(repo.dir, '.builder.yml')) || {}
+    builds = yaml.fetch('builds', [{
+      'dir'   => '.',
+      'image' => [ @registry, "#{repo.name}" ].compact.join('/')
+    }])
     end
 
     Resque.logger.info "done #{repo.image}"
+  ## load optional yaml file listing subdirs to build
+  def self.load_yaml(file)
+    if File.exists?(file)
+      Resque.logger.info "found builder file #{file}"
+      YAML.load_file(file)
+    end
   end
 
   ## update repo and return SHA
