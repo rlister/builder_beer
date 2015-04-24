@@ -112,7 +112,7 @@ class Builder
   ## add a tag to image
   def self.docker_tag(image, name)
     Resque.logger.info "tagging image #{image} as #{name}"
-    %x[ #{@docker} tag #{image} #{name} ]
+    %x[ #{@docker} tag -f #{image} #{name} ]
     $?.success?
   end
 
