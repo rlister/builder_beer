@@ -5,22 +5,33 @@ require './slack'
 class Builder
   @queue     = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
   @home      = ENV.fetch('BUILDER_HOME', '/tmp')          # where to clone repos
-  @docker    = ENV.fetch('BUILDER_DOCKER', 'sudo docker') # how to run docker
   @registry  = ENV.fetch('BUILDER_REGISTRY', nil)         # set this to your private registry
   @files_dir = ENV.fetch('BUILDER_FILES', File.join(File.dirname(File.expand_path(__FILE__)), 'files')) # dir for extra files to deliver into repos
 
   def self.perform(params)
     repo = OpenStruct.new(params)
 
-    ## for tag and dir we need to remove / from branch
+    ## authenticate to private registry
+    if @registry
+      Docker.authenticate!(
+        username:      ENV['BUILDER_REGISTRY_USERNAME'],
+        password:      ENV['BUILDER_REGISTRY_PASSWORD'],
+        email:         ENV.fetch('BUILDER_REGISTRY_EMAIL', 'builder@example.com'),
+        serveraddress: "https://#{@registry}/v1/"
+      )
+    end
+
+    ## prevent timeout on docker api operations (e.g. long bundle install during build)
+    Excon.defaults[:write_timeout] = ENV.fetch('DOCKER_WRITE_TIMEOUT', 1000)
+    Excon.defaults[:read_timeout]  = ENV.fetch('DOCKER_READ_TIMEOUT',  1000)
+
+    ## for tag and dir we need to replace / in branch
     branch = repo.branch.gsub('/', '-')
 
+    ## pull the repo
     repo.url ||= "git@github.com:#{repo.org}/#{repo.name}.git"
     repo.dir ||= File.join(@home, repo.org, "#{repo.name}:#{branch}")
-
-    Resque.logger.info "building from #{repo.url}"
-
-    ## pull the repo
+    Resque.logger.info "pulling #{repo.url}"
     repo.sha = git_pull(repo)
 
     ## copy any external files into the repo
@@ -29,7 +40,7 @@ class Builder
     ## link to commit to embed into slack messages
     sha_link = "<http://github.com/#{repo.org}/#{repo.name}/commit/#{repo.sha}|#{repo.sha.slice(0,10)}>"
 
-    ## load config from file or default
+    ## load config from file or default is a single build in top-level of repo
     yaml = load_yaml(File.join(repo.dir, '.builder.yml')) || {}
     builds = yaml.fetch('builds', [{
       'dir'   => '.',
@@ -38,22 +49,37 @@ class Builder
 
     ## do all requested builds
     builds.each do |build|
+      image = build['image']
+      Resque.logger.info "building image #{image}:#{branch}"
 
-      image_with_sha    = "#{build['image']}:#{repo.sha}" # image to build, tagged with sha
-      image_with_branch = "#{build['image']}:#{branch}"   # add branch as a tag
+      begin
+        ## build the image
+        img = Docker::Image.build_from_dir(File.join(repo.dir, build['dir']), dockerfile: build.fetch('dockerfile', 'Dockerfile')) do |chunk|
+          stream = JSON.parse(chunk)['stream']
+          Resque.logger.info stream unless stream.match(/^\s+$/) # very verbose about build progress
+        end
 
-      ## build the image
-      build_ok = docker_build(File.join(repo.dir, build['dir']), image_with_sha, build.fetch('dockerfile', 'Dockerfile'))
-      notify_slack("build #{build_ok ? 'complete' : 'failed'} for #{image_with_branch} #{sha_link}", build_ok)
+        ## tag and push
+        if img.is_a?(Docker::Image)
+          notify_slack("build complete for #{image}:#{branch} #{sha_link}", true)
 
-      ## add extra tag and push to registry
-      if build_ok
-        docker_tag(image_with_sha, image_with_branch)
-        push_ok = docker_push(image_with_sha) && docker_push(image_with_branch)
-        notify_slack("push #{push_ok ? 'complete' : 'failed'} for #{image_with_branch} #{sha_link}", push_ok)
+          Resque.logger.info "tagging #{image}:#{branch}"
+          img.tag(repo: image, tag: repo.sha, force: true)
+          img.tag(repo: image, tag: branch,   force: true)
+
+          Resque.logger.info "pushing #{image}:#{branch}"
+          img.push(nil, tag: repo.sha)
+          img.push(nil, tag: branch)
+
+          notify_slack("push complete for #{image}:#{branch} #{sha_link}", true)
+        else
+          notify_slack("build failed for #{image}:#{branch} #{sha_link}", false)
+        end
+      rescue => e
+        notify_slack("error for #{image}:#{branch}: #{e.message}", false)
       end
 
-      Resque.logger.info "done #{image_with_sha}"
+      Resque.logger.info "done #{image}:#{branch}"
     end
   end
 
@@ -99,29 +125,6 @@ class Builder
       Resque.logger.info("copying files from #{files_dir} into #{repo_dir}")
       FileUtils.cp_r(File.join(files_dir, '.'), repo_dir)
     end
-  end
-
-  ## build image, return true/false for success/fail
-  def self.docker_build(dir, image, dockerfile)
-    Resque.logger.info "building image #{image} in #{dir}"
-    Dir.chdir(dir) do
-      %x[ #{@docker} build --rm -t #{image} -f #{dockerfile} . ]
-      $?.success?
-    end
-  end
-
-  ## add a tag to image
-  def self.docker_tag(image, name)
-    Resque.logger.info "tagging image #{image} as #{name}"
-    %x[ #{@docker} tag -f #{image} #{name} ]
-    $?.success?
-  end
-
-  ## push image to registry
-  def self.docker_push(image)
-    Resque.logger.info "pushing image #{image}"
-    %x[ #{@docker} push #{image} ]
-    $?.success?
   end
 
 end
