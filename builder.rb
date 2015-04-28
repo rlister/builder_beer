@@ -1,5 +1,6 @@
-require './slack'
+require 'docker'
 require 'yaml'
+require './slack'
 
 class Builder
   @queue     = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
