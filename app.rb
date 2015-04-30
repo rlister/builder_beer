@@ -39,3 +39,8 @@ post '/github' do
   end
 
 end
+
+## status check for load-balancers, etc
+get '/status' do
+  'ok'
+end
