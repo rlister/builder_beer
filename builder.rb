@@ -1,5 +1,6 @@
 require 'docker'
 require 'yaml'
+require 'benchmark'
 require './slack'
 
 class Builder
@@ -58,26 +59,30 @@ class Builder
 
       begin
         ## build the image
-        img = Docker::Image.build_from_dir(File.join(repo.dir, build['dir']), dockerfile: build.fetch('dockerfile', 'Dockerfile')) do |chunk|
-          stream = JSON.parse(chunk)['stream']
-          unless (stream.nil? || stream.match(/^[\s\.]+$/)) # very verbose about build progress
-            Resque.logger.info stream.chomp
+        build_time = Benchmark.realtime do
+          img = Docker::Image.build_from_dir(File.join(repo.dir, build['dir']), dockerfile: build.fetch('dockerfile', 'Dockerfile')) do |chunk|
+            stream = JSON.parse(chunk)['stream']
+            unless (stream.nil? || stream.match(/^[\s\.]+$/)) # very verbose about build progress
+              Resque.logger.info stream.chomp
+            end
           end
         end
 
         ## tag and push
         if img.is_a?(Docker::Image)
-          notify_slack("build complete for #{image}:#{branch} #{sha_link}", :good)
+          notify_slack("build complete for #{image}:#{branch} #{sha_link} (#{build_time.round})", :good)
 
           Resque.logger.info "tagging #{image}:#{branch}"
           img.tag(repo: image, tag: repo.sha, force: true)
           img.tag(repo: image, tag: branch,   force: true)
 
           Resque.logger.info "pushing #{image}:#{branch}"
-          img.push(nil, tag: repo.sha)
-          img.push(nil, tag: branch)
+          push_time = Benchmark.realtime do
+            img.push(nil, tag: repo.sha)
+            img.push(nil, tag: branch)
+          end
 
-          notify_slack("push complete for #{image}:#{branch} #{sha_link}", :good)
+          notify_slack("push complete for #{image}:#{branch} #{sha_link} (#{push_time.round})", :good)
         else
           notify_slack("build failed for #{image}:#{branch} #{sha_link}", :danger)
         end
