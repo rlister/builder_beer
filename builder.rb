@@ -59,6 +59,7 @@ class Builder
 
       begin
         ## build the image
+        img = nil
         build_time = Benchmark.realtime do
           img = Docker::Image.build_from_dir(File.join(repo.dir, build['dir']), dockerfile: build.fetch('dockerfile', 'Dockerfile')) do |chunk|
             stream = JSON.parse(chunk)['stream']
