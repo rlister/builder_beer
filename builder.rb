@@ -60,12 +60,14 @@ class Builder
         ## build the image
         img = Docker::Image.build_from_dir(File.join(repo.dir, build['dir']), dockerfile: build.fetch('dockerfile', 'Dockerfile')) do |chunk|
           stream = JSON.parse(chunk)['stream']
-          Resque.logger.info stream unless stream.match(/^\s+$/) # very verbose about build progress
+          unless (stream.nil? || stream.match(/^[\s\.]+$/)) # very verbose about build progress
+            Resque.logger.info stream.chomp
+          end
         end
 
         ## tag and push
         if img.is_a?(Docker::Image)
-          notify_slack("build complete for #{image}:#{branch} #{sha_link}", true)
+          notify_slack("build complete for #{image}:#{branch} #{sha_link}", :good)
 
           Resque.logger.info "tagging #{image}:#{branch}"
           img.tag(repo: image, tag: repo.sha, force: true)
@@ -75,12 +77,12 @@ class Builder
           img.push(nil, tag: repo.sha)
           img.push(nil, tag: branch)
 
-          notify_slack("push complete for #{image}:#{branch} #{sha_link}", true)
+          notify_slack("push complete for #{image}:#{branch} #{sha_link}", :good)
         else
-          notify_slack("build failed for #{image}:#{branch} #{sha_link}", false)
+          notify_slack("build failed for #{image}:#{branch} #{sha_link}", :danger)
         end
       rescue => e
-        notify_slack("error for #{image}:#{branch}: #{e.message}", false)
+        notify_slack("error for #{image}:#{branch}: #{e.message}", :danger)
       end
 
       Resque.logger.info "done #{image}:#{branch}"

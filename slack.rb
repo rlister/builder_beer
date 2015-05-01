@@ -13,11 +13,9 @@ class Builder
 
     request = Net::HTTP::Post.new(uri.request_uri)
     request.set_form_data(payload: {
-      username: @name,
-      channel:  @channel,
       attachments: [{
         text:      message,
-        color:     ok ? 'good' : 'danger',
+        color:     color.to_s,
         mrkdwn_in: %w[ text ],  #allow link formatting in attachment
       }]
     }.to_json)
