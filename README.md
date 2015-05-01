@@ -2,8 +2,9 @@
 
 Builds your docker containers while you relax with a beer.
 
-This is lame: it is just a resque worker than does `docker build` and
-`docker push`. It can be triggered from a sinatra webhook. That's it.
+This is lame: it is just a resque worker that clones a repo from
+github, does `docker build` and `docker push`. It can be triggered
+from a sinatra webhook. That's it.
 
 ## Installation
 
@@ -32,6 +33,7 @@ docker run -d --name builder \
   -v /data:/data \
   -e BUILDER_HOME=/data \
   -e REDIS_URL=redis://172.17.42.1:6379/0 \
+  -e GITHUB_TOKEN=024599c4f72e010b926795198cb73db5f2cfee77 \
   -p 9292:9292 \
   rlister/builder_beer:latest
 ```

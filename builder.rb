@@ -7,6 +7,7 @@ class Builder
   @home      = ENV.fetch('BUILDER_HOME', '/tmp')          # where to clone repos
   @registry  = ENV.fetch('BUILDER_REGISTRY', nil)         # set this to your private registry
   @files_dir = ENV.fetch('BUILDER_FILES', File.join(File.dirname(File.expand_path(__FILE__)), 'files')) # dir for extra files to deliver into repos
+  @github_token = ENV['GITHUB_TOKEN']
 
   def self.perform(params)
     repo = OpenStruct.new(params)
@@ -28,9 +29,12 @@ class Builder
     ## for tag and dir we need to replace / in branch
     branch = repo.branch.gsub('/', '-')
 
-    ## pull the repo
-    repo.url ||= "git@github.com:#{repo.org}/#{repo.name}.git"
+    ## clone with https if we have a token, otherwise ssh and depends on ssh keys being set up
+    repo.url ||= @github_token ? "https://#{@github_token}@github.com/#{repo.org}/#{repo.name}.git" : "git@github.com:#{repo.org}/#{repo.name}.git"
+
+    ## where to clone the repo
     repo.dir ||= File.join(@home, repo.org, "#{repo.name}:#{branch}")
+
     Resque.logger.info "pulling #{repo.url}"
     repo.sha = git_pull(repo)
 
