@@ -83,6 +83,7 @@ class Builder
         end
       rescue => e
         notify_slack("error for #{image}:#{branch}: #{e.message}", :danger)
+        raise e
       end
 
       Resque.logger.info "done #{image}:#{branch}"
