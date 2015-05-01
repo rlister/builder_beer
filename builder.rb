@@ -42,6 +42,12 @@ class Builder
     Resque.logger.info "pulling #{repo.url}"
     repo.sha = git_pull(repo)
 
+    ## bail if git messed up somehow
+    unless repo.sha
+      notify_slack("git sha not found: #{repo.org}/#{repo.name}:#{repo.branch}", :danger)
+      raise 'git sha not found'
+    end
+
     ## copy any external files into the repo
     copy_files(File.join(@files_dir, repo.name), repo.name)
 
