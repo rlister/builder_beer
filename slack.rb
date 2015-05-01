@@ -3,13 +3,9 @@ require 'json'
 
 class Builder
 
-  @team    = ENV.fetch('BUILDER_SLACK_TEAM', nil)
-  @channel = ENV.fetch('BUILDER_SLACK_CHANNEL', '#test')
-  @name    = ENV.fetch('BUILDER_SLACK_NAME', 'builder')
-  @token   = ENV.fetch('BUILDER_SLACK_TOKEN', nil)
-
-  def self.notify_slack(message, ok)
-    uri = URI.parse("https://#{@team}.slack.com/services/hooks/incoming-webhook?token=#{@token}")
+  ## color should be :good, :warning, :danger, or a hex value
+  def self.notify_slack(message, color = :good)
+    uri = URI.parse(ENV['SLACK_WEBHOOK'])
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
