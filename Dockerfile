@@ -17,7 +17,7 @@ RUN bundle install --without development test
 WORKDIR /app
 ADD ./ /app
 
-EXPOSE 9292
+EXPOSE 9292 5678
 
 ENTRYPOINT [ "bundle", "exec" ]
 CMD [ "foreman", "start" ]
