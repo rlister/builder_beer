@@ -130,8 +130,12 @@ class Builder
   end
 
   def self.git_rev_parse(repo)
-    Dir.chdir(repo.dir) do
-      %x[ git rev-parse #{repo.branch} ].chomp
+    if Dir.exists?(repo.dir)
+      Dir.chdir(repo.dir) do
+        %x[ git rev-parse #{repo.branch} ].chomp
+      end
+    else
+      false
     end
   end
 
