@@ -1,6 +1,11 @@
 FROM rlister/ruby:2.1.6
 MAINTAINER Ric Lister, rlister@gmail.com
 
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
+    apt-get install -y \
+    git
+
 WORKDIR /app
 
 ## help docker cache bundle
