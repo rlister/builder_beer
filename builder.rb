@@ -71,7 +71,7 @@ class Builder
 
         ## tag and push
         if img.is_a?(Docker::Image)
-          notify_slack("build complete for #{image}:#{branch} #{sha_link} (#{build_time.round})", :good)
+          notify_slack("build complete for #{image}:#{branch} #{sha_link} (#{build_time.round}s)", :good)
 
           Resque.logger.info "tagging #{image}:#{branch}"
           img.tag(repo: image, tag: repo.sha, force: true)
@@ -83,7 +83,7 @@ class Builder
             img.push(nil, tag: branch)
           end
 
-          notify_slack("push complete for #{image}:#{branch} #{sha_link} (#{push_time.round})", :good)
+          notify_slack("push complete for #{image}:#{branch} #{sha_link} (#{push_time.round}s)", :good)
         else
           notify_slack("build failed for #{image}:#{branch} #{sha_link}", :danger)
         end
