@@ -9,7 +9,7 @@ get '/build' do
     raise 'missing required param: repo' unless params[:repo]
 
     match = params[:repo].match(/^(?<org>\S+)\/(?<name>\S+):(?<branch>\S+)/)
-    raise 'could not parse repo' unless match
+    raise "could not parse repo <#{params[:repo]}>" unless match
 
     Resque.enqueue(Builder, {
       org:    match[:org],
