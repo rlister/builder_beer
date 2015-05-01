@@ -56,6 +56,13 @@ get '/status/queues' do
   end.to_json
 end
 
+## show working jobs
+get '/status/jobs' do
+  Resque.working.map do |worker|
+    worker.job
+  end.to_json
+end
+
 ## show most recent failures
 get '/status/failures' do
   count = params.fetch('last', 1).to_i
