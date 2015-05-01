@@ -47,7 +47,7 @@ get '/status' do
 end
 
 ## get queue lengths and next job
-get '/queues' do
+get '/status/queues' do
   Resque.queues.each_with_object({}) do |q, hash|
     hash[q] = {
       size: Resque.size(q),
@@ -57,7 +57,7 @@ get '/queues' do
 end
 
 ## show most recent failures
-get '/failures' do
+get '/status/failures' do
   offset = -1 * params.fetch(:last, 1).to_i
   Resque::Failure.all(offset).to_json
 end
