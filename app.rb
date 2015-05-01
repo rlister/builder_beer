@@ -1,5 +1,6 @@
 require 'sinatra'
 require 'resque'
+require 'json'
 require './builder'
 
 ## simple endpoint as GET /build?repo=org/name:branch&image=...
@@ -43,4 +44,20 @@ end
 ## status check for load-balancers, etc
 get '/status' do
   'ok'
+end
+
+## get queue lengths and next job
+get '/queues' do
+  Resque.queues.each_with_object({}) do |q, hash|
+    hash[q] = {
+      size: Resque.size(q),
+      peek: Resque.peek(q),
+    }
+  end.to_json
+end
+
+## show most recent failures
+get '/failures' do
+  offset = -1 * params.fetch(:last, 1).to_i
+  Resque::Failure.all(offset).to_json
 end
