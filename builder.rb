@@ -1,9 +1,12 @@
 require 'docker'
 require 'yaml'
 require 'benchmark'
+require 'resque-loner'
 require './slack'
 
 class Builder
+  include Resque::Plugins::UniqueJob
+
   @queue     = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
   @home      = ENV.fetch('BUILDER_HOME', '/tmp')          # where to clone repos
   @registry  = ENV.fetch('BUILDER_REGISTRY', nil)         # set this to your private registry
