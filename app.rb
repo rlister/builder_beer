@@ -58,6 +58,6 @@ end
 
 ## show most recent failures
 get '/status/failures' do
-  offset = -1 * params.fetch(:last, 1).to_i
-  Resque::Failure.all(offset).to_json
+  count = params.fetch('last', 1).to_i
+  Resque::Failure.all(-1*count, count).to_json
 end
