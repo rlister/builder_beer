@@ -26,19 +26,21 @@ end
 
 ## receive a post-receive hook from github
 post '/github' do
-
   if env["HTTP_X_GITHUB_EVENT"] == "push"
     payload = JSON.parse(request.body.read)
-    Resque.enqueue(Builder, {
-      org:    payload['repository']['organization'],
-      name:   payload['repository']['name'],
-      branch: payload['ref'].gsub('refs/heads/', ''),
-    })
-    'ok'
+    if payload['ref'].match(/^refs\/tags\//)
+      'tag commit: ignored'
+    else
+      Resque.enqueue(Builder, {
+        org:    payload['repository']['organization'],
+        name:   payload['repository']['name'],
+        branch: payload['ref'].gsub('refs/heads/', ''),
+      })
+      'ok'
+    end
   else
-    'ignored'
+    'not a push: ignored'
   end
-
 end
 
 ## status check for load-balancers, etc
