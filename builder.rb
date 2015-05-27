@@ -120,7 +120,15 @@ class Builder
     else
       git_clone(repo)    #new repo, clone it
     end
+    git_reset_commit(repo) if repo.commit
     git_rev_parse(repo)  #return SHA
+  end
+
+  def self.git_reset_commit(repo)
+    Resque.logger.info "specific commit requested, resetting to #{repo.commit}"
+    Dir.chdir(repo.dir) do
+      %x[ git fetch && git reset --hard #{repo.commit} ]
+    end
   end
 
   def self.git_checkout(repo)
