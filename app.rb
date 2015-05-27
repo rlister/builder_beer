@@ -12,10 +12,11 @@ get '/build' do
     raise "could not parse repo <#{params[:repo]}>" unless match
 
     Resque.enqueue(Builder, {
-      org:    match[:org],
-      name:   match[:name],
-      branch: match[:branch],
-      image:  params[:image],
+      org:     match[:org],
+      name:    match[:name],
+      branch:  match[:branch],
+      image:   params[:image],
+      commit:  params[:commit],
     })
     'ok'
   rescue => e
