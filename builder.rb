@@ -82,9 +82,15 @@ class Builder
         if img.is_a?(Docker::Image)
           notify_slack("build complete for #{image}:#{branch} #{sha_link} (#{build_time.round}s)", :good)
 
-          Resque.logger.info "tagging #{image}:#{branch}"
+          Resque.logger.info "tagging #{image}:#{repo.sha}"
           img.tag(repo: image, tag: repo.sha, force: true)
-          img.tag(repo: image, tag: branch,   force: true)
+
+          if repo.commit
+            Resque.logger.info "commit passed, not tagging with branch"
+          else
+            Resque.logger.info "tagging #{image}:#{branch}"
+            img.tag(repo: image, tag: branch, force: true)
+          end
 
           Resque.logger.info "pushing #{image}:#{branch}"
           push_time = Benchmark.realtime do
