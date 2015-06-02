@@ -62,8 +62,16 @@ end
 ## show working jobs
 get '/status/jobs' do
   Resque.working.map do |worker|
-    worker.job
+    worker.job.merge(id: worker.id)
   end.to_json
+end
+
+## delete a (stuck) worker by id (first matching)
+delete '/status/jobs/:id' do
+  worker = Resque.working.find do |w|
+    w.id.match(/#{params[:id]}/)
+  end
+  worker.unregister_worker if worker
 end
 
 ## show most recent failures
