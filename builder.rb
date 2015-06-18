@@ -92,9 +92,10 @@ class Builder
             img.tag(repo: image, tag: branch, force: true)
           end
 
-          Resque.logger.info "pushing #{image}:#{branch}"
           push_time = Benchmark.realtime do
+            Resque.logger.info "pushing #{image}:#{repo.sha}"
             img.push(nil, tag: repo.sha)
+            Resque.logger.info "pushing #{image}:#{branch}"
             img.push(nil, tag: branch)
           end
 
