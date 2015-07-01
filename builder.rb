@@ -7,11 +7,12 @@ require './slack'
 class Builder
   include Resque::Plugins::UniqueJob
 
-  @queue     = ENV.fetch('BUILDER_QUEUE', :builder_queue) # resque queue
-  @home      = ENV.fetch('BUILDER_HOME', '/tmp')          # where to clone repos
-  @registry  = ENV.fetch('BUILDER_REGISTRY', nil)         # set this to your private registry
-  @files_dir = ENV.fetch('BUILDER_FILES', File.join(File.dirname(File.expand_path(__FILE__)), 'files')) # dir for extra files to deliver into repos
-  @github_token = ENV['GITHUB_TOKEN']
+  @queue            = ENV.fetch('BUILDER_QUEUE', :builder_queue)  # resque queue
+  @home             = ENV.fetch('BUILDER_HOME', '/tmp')           # where to clone repos
+  @registry         = ENV.fetch('BUILDER_REGISTRY', nil)          # set this to your private registry
+  @registry_version = ENV.fetch('BUILDER_REGISTRY_VERSION', 'v2') # endpoint to hit at registry
+  @files_dir        = ENV.fetch('BUILDER_FILES', File.join(File.dirname(File.expand_path(__FILE__)), 'files')) # dir for extra files to deliver into repos
+  @github_token     = ENV['GITHUB_TOKEN']
 
   def self.perform(params)
     repo = OpenStruct.new(params)
@@ -22,7 +23,7 @@ class Builder
         username:      ENV['BUILDER_REGISTRY_USERNAME'],
         password:      ENV['BUILDER_REGISTRY_PASSWORD'],
         email:         ENV.fetch('BUILDER_REGISTRY_EMAIL', 'builder@example.com'),
-        serveraddress: "https://#{@registry}/v1/"
+        serveraddress: "https://#{@registry}/#{@registry_version}/"
       )
     end
 
