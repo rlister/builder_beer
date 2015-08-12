@@ -5,7 +5,7 @@ gem 'resque-loner'
 gem 'rake'
 gem 'sinatra'
 gem 'foreman'
-gem 'docker-api'
+gem 'docker-api', '>=1.22.2'
 gem 'aws-sdk'
 
 group :development do
