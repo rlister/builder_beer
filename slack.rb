@@ -23,4 +23,17 @@ class Builder
     http.request(request)
   end
 
+  def self.notify_webhook(params)
+    Resque.logger.info "notify webhook"
+    return unless params['notify']
+    uri = URI.parse(params['notify'])
+    http = Net::HTTP.new(uri.host, uri.port)
+    # http.use_ssl = true
+    # http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+    request = Net::HTTP::Get.new(uri.request_uri)
+    http.request(request)
+  rescue => e
+    Resque.logger.info "webook error: #{e.message}"
+  end
+
 end

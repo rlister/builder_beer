@@ -101,6 +101,7 @@ class Builder
           end
 
           notify_slack("push complete for #{image}:#{branch} #{sha_link} (#{push_time.round}s)", :good)
+          notify_webhook(params)
         else
           notify_slack("build failed for #{image}:#{branch} #{sha_link}", :danger)
         end
